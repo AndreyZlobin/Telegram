@@ -4540,21 +4540,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 sendLogs(getParentActivity(), true);
             } else if (position == clearLogsRow) {
                 FileLog.cleanupLogs();
-            } else if (position == switchBackendRow) {
-                if (getParentActivity() == null) {
-                    return;
-                }
-                AlertDialog.Builder builder1 = new AlertDialog.Builder(getParentActivity(), resourcesProvider);
-                builder1.setMessage(LocaleController.getString(R.string.AreYouSure));
-                builder1.setTitle(LocaleController.getString(R.string.AppName));
-                builder1.setPositiveButton(LocaleController.getString(R.string.OK), (dialogInterface, i) -> {
-                    SharedConfig.pushAuthKey = null;
-                    SharedConfig.pushAuthKeyId = null;
-                    SharedConfig.saveConfig();
-                    getConnectionsManager().switchBackend(true);
-                });
-                builder1.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
-                showDialog(builder1.create());
             } else if (position == languageRow) {
                 presentFragment(new LanguageSelectActivity());
             } else if (position == setUsernameRow) {
@@ -11046,9 +11031,6 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     sendLogsRow = rowCount++;
                     sendLastLogsRow = rowCount++;
                     clearLogsRow = rowCount++;
-                }
-                if (BuildVars.DEBUG_VERSION) {
-                    switchBackendRow = rowCount++;
                 }
                 versionRow = rowCount++;
             } else {

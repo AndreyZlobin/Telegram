@@ -11688,4 +11688,5 @@
     <string name="TgLockConnected">Connected through TGLock. Messages and media use the built-in proxy. Calls are not supported.</string>
     <string name="TgLockError">TGLock could not connect. Turn it off and on to retry, or turn it off to restore your previous connection.</string>
     <string name="TgLockStartError">TGLock could not start. Your previous connection was restored. Enable TGLock to retry.</string>
+    <string name="ForkLoginApiError">Telegram rejected the API credentials used by this build. To sign in, the app must be built with your own api_id and api_hash from my.telegram.org. Changing the proxy will not resolve this error.</string>
 </resources>

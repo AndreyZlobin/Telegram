@@ -272,4 +272,5 @@
     <string name="TgLockConnected">Подключено через TGLock. Сообщения и медиа идут через встроенный прокси. Звонки не поддерживаются.</string>
     <string name="TgLockError">Не удалось подключить TGLock. Выключите и включите его для повторной попытки или выключите, чтобы вернуть прежнее соединение.</string>
     <string name="TgLockStartError">Не удалось включить TGLock. Прежнее соединение восстановлено. Включите TGLock, чтобы повторить.</string>
+    <string name="ForkLoginApiError">Telegram отклонил API-параметры этой сборки. Для входа нужно собрать приложение со своими api_id и api_hash с my.telegram.org. Переключение прокси эту ошибку не исправит.</string>
 </resources>

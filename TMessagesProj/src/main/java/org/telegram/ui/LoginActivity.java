@@ -234,8 +234,6 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
     public final static boolean ENABLE_PASTED_TEXT_PROCESSING = false;
     private final static int SHOW_DELAY = SharedConfig.getDevicePerformanceClass() <= SharedConfig.PERFORMANCE_CLASS_AVERAGE ? 150 : 100;
 
-    public static final boolean TEST_BACKEND_IN_STORE = false;
-
     public final static int AUTH_TYPE_MESSAGE = 1,
             AUTH_TYPE_SMS = 2,
             AUTH_TYPE_FLASH_CALL = 3,
@@ -344,7 +342,6 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
     private boolean checkShowPermissions = true;
     private boolean newAccount;
     private boolean syncContacts = true;
-    private boolean testBackend = false;
 
     @ActivityMode
     private int activityMode = MODE_LOGIN;
@@ -2005,7 +2002,6 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         private ImageView chevronRight;
         private int chevronRightFilterColor, chevronRightSelectorColor;
         private CheckBoxCell syncContactsBox;
-        private CheckBoxCell testBackendCheckBox;
 
         @CountryState
         private int countryState = COUNTRY_STATE_NOT_SET_OR_VALID;
@@ -2514,28 +2510,6 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 });
             }
 
-            final boolean allowTestBackend = (BuildVars.DEBUG_VERSION || TEST_BACKEND_IN_STORE && !BuildConfig.BUNDLE) || getConnectionsManager().isTestBackend();
-            if (allowTestBackend && activityMode == MODE_LOGIN) {
-                testBackendCheckBox = new CheckBoxCell(context, 2);
-                testBackendCheckBox.setText(getString(R.string.DebugTestBackend), "", testBackend = getConnectionsManager().isTestBackend(), false);
-                addView(testBackendCheckBox, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT, Gravity.LEFT | Gravity.TOP, 16, 0, 16 + (LocaleController.isRTL && AndroidUtilities.isSmallScreen() ? 56 : 0), 0));
-                bottomMargin -= 24;
-                testBackendCheckBox.setOnClickListener(v -> {
-                    if (getParentActivity() == null) {
-                        return;
-                    }
-                    CheckBoxCell cell = (CheckBoxCell) v;
-                    testBackend = !testBackend;
-                    cell.setChecked(testBackend, true);
-
-                    boolean testBackend = allowTestBackend && getConnectionsManager().isTestBackend();
-                    if (testBackend != LoginActivity.this.testBackend) {
-                        getConnectionsManager().switchBackend(false);
-                    }
-                    loadCountries();
-                });
-            }
-
             if (bottomMargin > 0 && !AndroidUtilities.isSmallScreen()) {
                 Space bottomSpacer = new Space(context);
                 bottomSpacer.setMinimumHeight(AndroidUtilities.dp(bottomMargin));
@@ -2735,10 +2709,6 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             if (syncContactsBox != null) {
                 syncContactsBox.setSquareCheckBoxColor(Theme.key_checkboxSquareUnchecked, Theme.key_checkboxSquareBackground, Theme.key_checkboxSquareCheck);
                 syncContactsBox.updateTextColor();
-            }
-            if (testBackendCheckBox != null) {
-                testBackendCheckBox.setSquareCheckBoxColor(Theme.key_checkboxSquareUnchecked, Theme.key_checkboxSquareBackground, Theme.key_checkboxSquareCheck);
-                testBackendCheckBox.updateTextColor();
             }
 
             phoneOutlineView.updateColor();
@@ -3081,7 +3051,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                 needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("ChooseCountry", R.string.ChooseCountry));
                 needHideProgress(false);
                 return;
-            } else if (countryState == COUNTRY_STATE_INVALID && !BuildVars.DEBUG_VERSION && !(TEST_BACKEND_IN_STORE && !BuildConfig.BUNDLE)) {
+            } else if (countryState == COUNTRY_STATE_INVALID && !BuildVars.DEBUG_VERSION) {
                 needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString(R.string.WrongCountry));
                 needHideProgress(false);
                 return;
@@ -3095,7 +3065,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                             continue;
                         }
                         String userPhone = userConfig.getCurrentUser().phone;
-                        if (PhoneNumberUtils.compare(phone, userPhone) && ConnectionsManager.getInstance(a).isTestBackend() == testBackend) {
+                        if (PhoneNumberUtils.compare(phone, userPhone) && !ConnectionsManager.getInstance(a).isTestBackend()) {
                             final int num = a;
                             AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
                             builder.setTitle(getString(R.string.AppName));
@@ -3274,8 +3244,15 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                             needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("CodeExpired", R.string.CodeExpired));
                         } else if (error.text.startsWith("FLOOD_WAIT")) {
                             needShowAlert(getString(R.string.RestorePasswordNoEmailTitle), getString("FloodWait", R.string.FloodWait));
+                        } else if (error.text.equals("API_ID_PUBLISHED_FLOOD") || error.text.equals("API_ID_INVALID")) {
+                            needShowAlert(getString(R.string.ErrorOccurred), getString(R.string.ForkLoginApiError) + "\n\n" + error.text);
                         } else if (error.code != -1000) {
-                            AlertsCreator.processError(currentAccount, error, LoginActivity.this, req, phoneInputData.phoneNumber);
+                            if (req instanceof TLRPC.TL_auth_sendCode) {
+                                // AlertsCreator has no sendCode handler, so this used to fail silently.
+                                needShowAlert(getString(R.string.ErrorOccurred), getString(R.string.ErrorOccurred) + "\n" + error.text);
+                            } else {
+                                AlertsCreator.processError(currentAccount, error, LoginActivity.this, req, phoneInputData.phoneNumber);
+                            }
                         }
                     }
                 }
@@ -3643,7 +3620,7 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                         if (!userConfig.isClientActivated()) {
                             continue;
                         }
-                        if (userConfig.getClientUserId() == userId && ConnectionsManager.getInstance(a).isTestBackend() == testBackend) {
+                        if (userConfig.getClientUserId() == userId && !ConnectionsManager.getInstance(a).isTestBackend()) {
                             if (UserConfig.selectedAccount != a) {
                                 ((LaunchActivity) getParentActivity()).switchToAccount(a, true);
                             }

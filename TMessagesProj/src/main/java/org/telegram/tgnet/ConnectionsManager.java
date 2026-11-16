@@ -872,10 +872,17 @@ public class ConnectionsManager extends BaseController {
 
     public static void onLogout(final int currentAccount) {
         AndroidUtilities.runOnUIThread(() -> {
+            // A saved test session must also discard any pending test login.
+            ApplicationLoader.applicationContext.getSharedPreferences("logininfo2_" + currentAccount, Context.MODE_PRIVATE).edit().clear().commit();
+            if (currentAccount == UserConfig.selectedAccount) {
+                ApplicationLoader.applicationContext.getSharedPreferences("logininfo2", Context.MODE_PRIVATE).edit().clear().commit();
+            }
             AccountInstance accountInstance = AccountInstance.getInstance(currentAccount);
             if (accountInstance.getUserConfig().getClientUserId() != 0) {
                 accountInstance.getUserConfig().clearConfig();
                 accountInstance.getMessagesController().performLogout(0);
+            } else {
+                accountInstance.getNotificationCenter().postNotificationName(NotificationCenter.appDidLogout);
             }
         });
     }

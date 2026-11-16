@@ -416,6 +416,27 @@ void ConnectionsManager::loadConfig() {
         buffer->reuse();
     }
 
+    // This fork only connects to production. Discard test DC keys before any
+    // network thread starts; the normal logout callback clears the test account.
+    if (testBackend) {
+        testBackend = false;
+        datacenters.clear();
+        sessionsToDestroy.clear();
+        currentDatacenterId = 0;
+        currentUserId = 0;
+        currentUserPremium = false;
+        timeDifference = 0;
+        lastDcUpdateTime = 0;
+        pushSessionId = 0;
+        registeredForInternalPush = false;
+        lastInitSystemLangcode.clear();
+        scheduleTask([&] {
+            if (delegate != nullptr) {
+                delegate->onLogout(instanceNum);
+            }
+        });
+    }
+
     if (currentDatacenterId != 0 && currentUserId) {
         Datacenter *datacenter = getDatacenterWithId(currentDatacenterId);
         if (datacenter == nullptr || !datacenter->hasPermanentAuthKey()) {
@@ -2061,19 +2082,7 @@ void ConnectionsManager::setUserId(int64_t userId) {
 }
 
 void ConnectionsManager::switchBackend(bool restart) {
-    scheduleTask([&, restart] {
-        currentDatacenterId = 1;
-        testBackend = !testBackend;
-        if (!restart) {
-            Handshake::cleanupServerKeys();
-        }
-        datacenters.clear();
-        initDatacenters();
-        saveConfig();
-        if (restart) {
-            exit(1);
-        }
-    });
+    // Kept for JNI compatibility. Test servers are disabled in this fork.
 }
 
 void ConnectionsManager::removeRequestFromGuid(int32_t requestToken) {

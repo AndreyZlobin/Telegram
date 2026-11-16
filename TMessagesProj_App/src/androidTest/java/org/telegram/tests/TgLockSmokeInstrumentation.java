@@ -3,6 +3,7 @@ package org.telegram.tests;
 import android.app.Activity;
 import android.app.Instrumentation;
 import android.content.SharedPreferences;
+import android.content.Context;
 import android.os.Bundle;
 import android.os.SystemClock;
 
@@ -12,6 +13,7 @@ import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.TgLockController;
 import org.telegram.messenger.UserConfig;
+import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.utils.proxy.ProxySettings;
 
 import java.lang.reflect.Method;
@@ -39,8 +41,20 @@ public class TgLockSmokeInstrumentation extends Instrumentation {
             for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
                 require(!UserConfig.getInstance(a).isClientActivated(), "Use an emulator without a signed-in account");
             }
+            for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+                ConnectionsManager manager = ConnectionsManager.getInstance(a);
+                require(!manager.isTestBackend(), "Test backend survived startup migration");
+                manager.switchBackend(false);
+            }
+            SystemClock.sleep(300);
+            for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+                require(!ConnectionsManager.getInstance(a).isTestBackend(), "Test backend can still be enabled");
+            }
+            runOnMainSync(() -> {});
+            require(!getTargetContext().getSharedPreferences("logininfo2", Context.MODE_PRIVATE)
+                    .contains("tglock_test_backend_fixture"), "Pending test login survived migration");
             testToggleAndRestore();
-            result.putString("result", "PASS: JNI, loopback listener, blocked non-Telegram target, toggle, proxy restore");
+            result.putString("result", "PASS: production backend, disabled backend switch, JNI, loopback listener, blocked non-Telegram target, toggle, proxy restore");
             finish(Activity.RESULT_OK, result);
         } catch (Throwable error) {
             result.putString("result", "FAIL: " + error.getClass().getSimpleName() + ": " + error.getMessage());
