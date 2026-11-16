@@ -13,8 +13,47 @@ public final class TgLockController {
     private static volatile boolean busy;
     private static volatile boolean failed;
     private static boolean loaded;
+    private static long defaultNetworkHandle = -1;
+    private static final Runnable reconnectForNetwork = () -> {
+        if (!isEnabled()) {
+            return;
+        }
+        busy = true;
+        notifyChanged();
+        SharedPreferences preferences = MessagesController.getGlobalMainSettings();
+        try {
+            // Route cooldown and open sockets belong to the previous network.
+            // A fresh engine retries reachable routes immediately on Wi-Fi/VPN changes.
+            stop();
+            startOrThrow();
+            applySavedProxy(preferences);
+            failed = false;
+        } catch (Throwable error) {
+            failed = true;
+            FileLog.e(error);
+            // Preserve the opt-in and fail closed if the listener cannot restart.
+            try {
+                applySavedProxy(preferences);
+            } catch (Throwable applyError) {
+                FileLog.e(applyError);
+            }
+        } finally {
+            busy = false;
+            notifyChanged();
+        }
+    };
 
     private TgLockController() { }
+
+    /** Called only when Android selects a different default network. */
+    public static synchronized void onNetworkAvailable(long handle) {
+        boolean changed = defaultNetworkHandle != -1 && defaultNetworkHandle != handle;
+        defaultNetworkHandle = handle;
+        if (changed) {
+            queue.cancelRunnable(reconnectForNetwork);
+            queue.postRunnable(reconnectForNetwork, 500);
+        }
+    }
 
     public static boolean isEnabled() {
         return MessagesController.getGlobalMainSettings().getBoolean(ENABLED, false);

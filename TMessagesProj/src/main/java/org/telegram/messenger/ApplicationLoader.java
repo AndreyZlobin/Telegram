@@ -451,6 +451,7 @@ public class ApplicationLoader extends Application {
                             @Override
                             public void onAvailable(@NonNull Network network) {
                                 lastKnownNetworkType = -1;
+                                TgLockController.onNetworkAvailable(network.getNetworkHandle());
                             }
 
                             @Override

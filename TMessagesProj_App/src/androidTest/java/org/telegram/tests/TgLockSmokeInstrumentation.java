@@ -54,7 +54,7 @@ public class TgLockSmokeInstrumentation extends Instrumentation {
             require(!getTargetContext().getSharedPreferences("logininfo2", Context.MODE_PRIVATE)
                     .contains("tglock_test_backend_fixture"), "Pending test login survived migration");
             testToggleAndRestore();
-            result.putString("result", "PASS: production backend, disabled backend switch, JNI, loopback listener, blocked non-Telegram target, toggle, proxy restore");
+            result.putString("result", "PASS: production backend, disabled backend switch, network-change restart, JNI, loopback listener, blocked non-Telegram target, toggle, proxy restore");
             finish(Activity.RESULT_OK, result);
         } catch (Throwable error) {
             result.putString("result", "FAIL: " + error.getClass().getSimpleName() + ": " + error.getMessage());
@@ -93,6 +93,23 @@ public class TgLockSmokeInstrumentation extends Instrumentation {
                 socket.getOutputStream().write(new byte[]{5, 1, 0, 1, (byte) 192, 0, 2, 1, 0, 80});
                 require(socket.getInputStream().read() == 5 && socket.getInputStream().read() != 0,
                         "Non-Telegram target was not blocked");
+            }
+            String previousSecret = local.getSecret();
+            TgLockController.onNetworkAvailable(Long.MAX_VALUE - 1);
+            TgLockController.onNetworkAvailable(Long.MAX_VALUE);
+            long deadline = SystemClock.elapsedRealtime() + 5000;
+            while (previousSecret.equals(TgLockController.getProxySettings().getSecret())
+                    && SystemClock.elapsedRealtime() < deadline) {
+                SystemClock.sleep(50);
+            }
+            require(!previousSecret.equals(TgLockController.getProxySettings().getSecret()),
+                    "Network switch did not restart the real native engine");
+            require(TgLockController.isEnabled() && prefs.getBoolean("tglock_enabled", false),
+                    "Network switch lost TGLock opt-in");
+            require(previous.equals(ProxySettings.fromSharedPreferences(prefs)),
+                    "Network switch overwrote the saved proxy");
+            while (TgLockController.isBusy() && SystemClock.elapsedRealtime() < deadline) {
+                SystemClock.sleep(50);
             }
             toggle(false);
             require(!TgLockController.isEnabled(), "Disable flag was not set");
