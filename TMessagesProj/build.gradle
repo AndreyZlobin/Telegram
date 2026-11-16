@@ -153,6 +153,7 @@ android {
     }
 
     defaultConfig {
+        buildConfigField 'boolean', 'FORK_DIAGNOSTICS', project.hasProperty('forkDiagnostics') ? 'true' : 'false'
         buildConfigField 'int', 'FORK_API_ID', forkApiId ?: '0'
         buildConfigField 'String', 'FORK_API_HASH', '"' + forkApiHash + '"'
         minSdkVersion 23

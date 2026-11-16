@@ -117,6 +117,11 @@ pub fn status() -> Result<String, String> {
             "connections": current.stats.active.load(Ordering::Relaxed),
             "tunnels": current.stats.ws.load(Ordering::Relaxed),
             "failures": current.stats.route_failures(),
+            "failed_connections": current.stats.ws_failures.load(Ordering::Relaxed),
+            "blocked": current.stats.blocked.load(Ordering::Relaxed),
+            "unknown_clients": current.stats.unknown_clients.load(Ordering::Relaxed),
+            "silent_clients": current.stats.silent_clients.load(Ordering::Relaxed),
+            "events": current.stats.drain_events(),
             "dc": current.stats.last_dc(),
             "route": current.stats.last_route(),
         })

@@ -13,6 +13,7 @@ public final class TgLockController {
     private static volatile boolean busy;
     private static volatile boolean failed;
     private static boolean loaded;
+    private static String lastDiagnostics = "";
     private static long defaultNetworkHandle = -1;
     private static final Runnable reconnectForNetwork = () -> {
         if (!isEnabled()) {
@@ -161,6 +162,14 @@ public final class TgLockController {
             JSONObject status;
             synchronized (TgLockController.class) {
                 status = new JSONObject(nativeStatus());
+            }
+            if (BuildConfig.FORK_DIAGNOSTICS) {
+                String diagnostic = status.toString();
+                if (!diagnostic.equals(lastDiagnostics)) {
+                    // Route state only: no endpoint secret, API credentials or message data.
+                    android.util.Log.i("TGLockDiag", diagnostic);
+                    lastDiagnostics = diagnostic;
+                }
             }
             if (!status.optBoolean("running")) {
                 return LocaleController.getString(R.string.TgLockError);
