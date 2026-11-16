@@ -149,6 +149,14 @@ android {
         }
     }
 
+    // Optional local build target; preserve upstream's multi-ABI defaults.
+    if (project.hasProperty('forkAbi')) {
+        productFlavors.configureEach { flavor ->
+            flavor.ndk.abiFilters.clear()
+            flavor.ndk.abiFilters.add(project.property('forkAbi').toString())
+        }
+    }
+
     defaultConfig.versionCode = Integer.parseInt(APP_VERSION_CODE)
 
     applicationVariants.all { variant ->

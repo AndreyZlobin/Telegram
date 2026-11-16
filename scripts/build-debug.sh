@@ -29,11 +29,15 @@ OUTPUT_DIR="${OUTPUT_DIR:-$ROOT/build/fork-debug}"
 mkdir -p "$OUTPUT_DIR"
 
 ./gradlew :TMessagesProj_App:assembleAfatDebug \
+    "-PforkAbi=$ABI" \
     "-Pandroid.injected.build.abi=$ABI" \
     "--max-workers=${BUILD_WORKERS:-6}" --console=plain "$@" \
     2>&1 | tee "$OUTPUT_DIR/build.log"
 
 APK="$ROOT/TMessagesProj_App/build/outputs/apk/afat/debug/app.apk"
+if [[ ! -f "$APK" ]]; then
+    APK="$ROOT/TMessagesProj_App/build/intermediates/apk/afat/debug/app.apk"
+fi
 if [[ ! -f "$APK" ]]; then
     echo "APK not found at $APK" >&2
     exit 1
