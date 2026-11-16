@@ -61,3 +61,6 @@
 [submodule "TMessagesProj/jni/twidget/widget-sandbox"]
 	path = TMessagesProj/jni/twidget/widget-sandbox
 	url = https://github.com/TelegramMessenger/widget-sandbox.git
+[submodule "third_party/tglock"]
+	path = third_party/tglock
+	url = https://github.com/by-sonic/tglock.git

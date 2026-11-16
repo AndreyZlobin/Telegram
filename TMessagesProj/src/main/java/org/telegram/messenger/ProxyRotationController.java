@@ -20,6 +20,9 @@ public class ProxyRotationController implements NotificationCenter.NotificationC
 
     private boolean isCurrentlyChecking;
     private Runnable checkProxyAndSwitchRunnable = () -> {
+        if (TgLockController.isEnabled() || TgLockController.isBusy()) {
+            return;
+        }
         isCurrentlyChecking = true;
 
         int currentAccount = UserConfig.selectedAccount;
@@ -59,6 +62,10 @@ public class ProxyRotationController implements NotificationCenter.NotificationC
     private void switchToAvailable() {
         isCurrentlyChecking = false;
 
+        if (TgLockController.isEnabled() || TgLockController.isBusy()) {
+            return;
+        }
+
         if (!SharedConfig.proxyRotationEnabled) {
             return;
         }
@@ -93,6 +100,11 @@ public class ProxyRotationController implements NotificationCenter.NotificationC
 
     @Override
     public void didReceivedNotification(int id, int account, Object... args) {
+        if (TgLockController.isEnabled() || TgLockController.isBusy()) {
+            AndroidUtilities.cancelRunOnUIThread(checkProxyAndSwitchRunnable);
+            isCurrentlyChecking = false;
+            return;
+        }
         if (id == NotificationCenter.proxyCheckDone) {
             if (!SharedConfig.isProxyEnabled() || !SharedConfig.proxyRotationEnabled || SharedConfig.proxyList.size() <= 1 || !isCurrentlyChecking) {
                 return;

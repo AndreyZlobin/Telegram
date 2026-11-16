@@ -1,0 +1,21 @@
+[package]
+name = "tglock-android"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "tglock_android"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+tglock = { path = "../../third_party/tglock", default-features = false }
+jni = "=0.21.1"
+tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "sync"] }
+rand = "0.8"
+serde_json = "1"
+
+[profile.release]
+lto = "thin"
+strip = "debuginfo"
+codegen-units = 1

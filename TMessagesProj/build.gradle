@@ -114,6 +114,14 @@ dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
 }
 
+def forkApiId = (getProps('TELEGRAM_API_ID') ?: '').trim()
+def forkApiHash = (getProps('TELEGRAM_API_HASH') ?: '').trim()
+if (forkApiId || forkApiHash) {
+    if (!(forkApiId ==~ /[1-9][0-9]{0,8}/) || !(forkApiHash ==~ /[a-fA-F0-9]{32}/)) {
+        throw new GradleException('Set both TELEGRAM_API_ID and TELEGRAM_API_HASH in local.properties.')
+    }
+}
+
 android {
     compileSdkVersion 36
     buildToolsVersion '36.0.0'
@@ -145,6 +153,8 @@ android {
     }
 
     defaultConfig {
+        buildConfigField 'int', 'FORK_API_ID', forkApiId ?: '0'
+        buildConfigField 'String', 'FORK_API_HASH', '"' + forkApiHash + '"'
         minSdkVersion 23
         targetSdkVersion 36
 
@@ -278,3 +288,20 @@ task checkVisibility {
 }
 
 preBuild.dependsOn checkVisibility
+
+// Compile the pinned Rust transport with the same ABI selection as the APK.
+def tgLockAbis = providers.gradleProperty('forkAbi')
+        .orElse(providers.gradleProperty('android.injected.build.abi'))
+        .getOrElse('armeabi-v7a,arm64-v8a,x86,x86_64')
+def tgLockNative = tasks.register('buildTgLockNative', Exec) {
+    inputs.property('abis', tgLockAbis)
+    inputs.files(rootProject.fileTree('native/tglock-android/src'))
+    inputs.files(rootProject.file('native/tglock-android/Cargo.toml'), rootProject.file('native/tglock-android/Cargo.lock'))
+    inputs.files(rootProject.fileTree('third_party/tglock/src'), rootProject.file('third_party/tglock/Cargo.toml'))
+    inputs.file(rootProject.file('scripts/build-tglock.sh'))
+    outputs.dir(rootProject.file('native/tglock-android/build/jniLibs'))
+    workingDir rootProject.projectDir
+    commandLine 'bash', rootProject.file('scripts/build-tglock.sh').absolutePath, tgLockAbis
+}
+android.sourceSets.main.jniLibs.srcDir(rootProject.file('native/tglock-android/build/jniLibs'))
+preBuild.dependsOn tgLockNative

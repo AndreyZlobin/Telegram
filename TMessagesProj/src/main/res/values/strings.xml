@@ -11679,4 +11679,13 @@
     <string name="FpnvConsentSimSlot">SIM Slot</string>
     <string name="FpnvConsentSimSlotValue">SIM %1$d</string>
     <string name="FpnvConsentPhoneNumber">Phone Number</string>
+
+    <!-- Built-in TGLock transport -->
+    <string name="TgLockEnable">Enable TGLock</string>
+    <string name="TgLockInfo">Use the built-in proxy for Telegram messages and media. Calls are not supported. Turning it off restores your previous connection.</string>
+    <string name="TgLockSwitching">Changing connection…</string>
+    <string name="TgLockConnecting">TGLock is on. Connecting to Telegram… Available routes depend on your network. Calls are not supported.</string>
+    <string name="TgLockConnected">Connected through TGLock. Messages and media use the built-in proxy. Calls are not supported.</string>
+    <string name="TgLockError">TGLock could not connect. Turn it off and on to retry, or turn it off to restore your previous connection.</string>
+    <string name="TgLockStartError">TGLock could not start. Your previous connection was restored. Enable TGLock to retry.</string>
 </resources>

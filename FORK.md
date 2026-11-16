@@ -5,7 +5,23 @@ Upstream: https://github.com/DrKLO/Telegram
 Fork: https://github.com/AndreyZlobin/Telegram
 
 База: Telegram 13.2.2 (7303), commit `21f7d109da6ab3506c9e9577f98c6a38771ab335`.
-Изменений поведения и интерфейса пока нет. Ветка `setup/android-build` содержит только подготовку сборки.
+Ветка `setup/android-build` сохраняет базовую сборку. В `feature/tglock` встроен
+TGLock 2.0.0-beta.19: переключатель «Включить TGLock» на экране настроек прокси.
+Экран доступен также по значку прокси справа вверху на экране ввода телефона.
+
+Прокси выключен по умолчанию. При включении Rust-ядро запускается внутри процесса
+Telegram и слушает только loopback на свободном порту. MTProto-секрет генерируется
+для этого процесса; в журнал не выводится. Сохранённый обычный прокси не изменяется.
+При отключении восстанавливается прежнее соединение. Переключатель общий для всех
+аккаунтов; выбор сохраняется между перезапусками, а listener запускается заново.
+Ротация обычных прокси при включённом TGLock приостановлена.
+
+Отдельное приложение, VPN, root и новые Android-разрешения не нужны. Ядро живёт
+вместе с процессом Telegram; самостоятельного фонового сервиса нет. Это не
+обещание постоянной работы после принудительной остановки приложения Android.
+TGLock использует свои WebSocket/TCP маршруты; работоспособность зависит от сети.
+Пользовательский Cloudflare Worker в этой версии интерфейса не настраивается.
+Звонки TGLock не туннелирует.
 
 Проверено 16 ноября 2026: сборка ARM64 debug APK успешна. Проверены целостность
 APK, наличие только ARM64 нативных библиотек и подпись APK v1/v2.
@@ -17,6 +33,7 @@ Package ID: `org.telegram.messenger.beta`, версия `13.2.2` (73039).
 - Android SDK Platform 36 и Build Tools 36.0.0.
 - Android NDK 27.2.12479018 и CMake 3.22.1.
 - Gradle 8.13 загружается штатным Gradle Wrapper.
+- Rust stable (не ниже 1.88), Cargo и rustup. Нужный Android target устанавливается скриптом.
 
 В `local.properties` укажите `sdk.dir=/абсолютный/путь/к/Android/sdk`.
 Переменная `JAVA_HOME` должна указывать на JDK 17.
@@ -25,7 +42,7 @@ Package ID: `org.telegram.messenger.beta`, версия `13.2.2` (73039).
 ## Сборка
 
 ```sh
-git clone --branch setup/android-build --recursive --shallow-submodules https://github.com/AndreyZlobin/Telegram.git
+git clone --branch feature/tglock --recursive --shallow-submodules https://github.com/AndreyZlobin/Telegram.git
 cd Telegram
 ./scripts/build-debug.sh
 ```
@@ -36,11 +53,43 @@ cd Telegram
 Сборку другой архитектуры можно выбрать через `BUILD_ABI=x86_64`.
 Скрипт передаёт `forkAbi`, чтобы ограничить и компиляцию, и упаковку одной
 архитектурой. Без этого параметра сохраняются штатные настройки upstream.
+Gradle автоматически собирает `native/tglock-android` и добавляет библиотеку в APK.
+Версия ядра закреплена submodule `third_party/tglock` на коммите
+`8ce93552433694e72fb74a6b4115f6dd99b62798`; GUI/Tauri не включены.
+MIT-лицензия ядра сохранена в исходниках и в assets APK.
 
 Это базовая тестовая сборка с опубликованной upstream тестовой конфигурацией API,
 Firebase и подписи. Личный API ID, Firebase и отдельная подпись ещё не настроены.
 Вход в аккаунт и push-уведомления не проверялись. Для распространения приложения
 нужны собственные значения согласно upstream README.
+
+Свои Telegram API-параметры задаются только в исключённом из Git `local.properties`:
+
+```properties
+TELEGRAM_API_ID=ваш_api_id
+TELEGRAM_API_HASH=ваш_api_hash
+```
+
+Без них остаётся публичная тестовая пара upstream. На проверке сервер возвращал
+`API_ID_PUBLISHED_FLOOD`; эта сборка подтверждает интеграцию транспорта, но не
+готовность авторизации. Не публикуйте `local.properties` и личные API-параметры.
+
+## Проверки TGLock
+
+```sh
+cargo test --manifest-path native/tglock-android/Cargo.toml --lib --locked
+./scripts/build-debug.sh :TMessagesProj_App:assembleAfatDebugAndroidTest
+```
+
+Instrumentation runner: `org.telegram.tests.TgLockSmokeInstrumentation`.
+Он предназначен только для эмулятора без авторизованных аккаунтов и проверяет
+настоящий JNI, loopback listener, отказ для чужого адреса, повторный запуск,
+остановку и сохранение/восстановление прежнего обычного прокси.
+После теста восстанавливаются исходные настройки прокси.
+
+Протокольный probe из upstream не создаёт ключ авторизации и не входит в аккаунт.
+Успех такого probe не подтверждает отправку сообщений или загрузку медиа
+из авторизованного аккаунта и не гарантирует работу у конкретного провайдера.
 
 ## Обновление базы
 

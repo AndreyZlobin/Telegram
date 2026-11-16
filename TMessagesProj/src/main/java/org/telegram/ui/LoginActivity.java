@@ -145,6 +145,7 @@ import org.telegram.messenger.PushListenerController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SRPHelper;
 import org.telegram.messenger.SharedConfig;
+import org.telegram.messenger.TgLockController;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
 import org.telegram.tgnet.ConnectionsManager;
@@ -790,10 +791,12 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
 
         proxyButtonView = new ImageView(context);
         proxyButtonView.setImageDrawable(proxyDrawable = new ProxyDrawable(context));
+        proxyButtonView.setContentDescription(getString(R.string.ProxySettings));
+        proxyButtonView.setPadding(AndroidUtilities.dp(8), AndroidUtilities.dp(8), AndroidUtilities.dp(8), AndroidUtilities.dp(8));
         proxyButtonView.setOnClickListener(v -> presentFragment(new ProxyListActivity()));
         proxyButtonView.setAlpha(0f);
         proxyButtonView.setVisibility(View.GONE);
-        sizeNotifierFrameLayout.addView(proxyButtonView, LayoutHelper.createFrame(32, 32, Gravity.RIGHT | Gravity.TOP, 16, 16, 16, 16));
+        sizeNotifierFrameLayout.addView(proxyButtonView, LayoutHelper.createFrame(48, 48, Gravity.RIGHT | Gravity.TOP, 16, 8, 8, 8));
         updateProxyButton(false, true);
 
         radialProgressView = new RadialProgressView(context);
@@ -9120,7 +9123,8 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
         currentConnectionState = state;
         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
         String proxyAddress = preferences.getString("proxy_ip", "");
-        final boolean proxyEnabled = preferences.getBoolean("proxy_enabled", false) && !TextUtils.isEmpty(proxyAddress);
+        final boolean proxyEnabled = TgLockController.isEnabled()
+                || preferences.getBoolean("proxy_enabled", false) && !TextUtils.isEmpty(proxyAddress);
         final boolean connected = currentConnectionState == ConnectionsManager.ConnectionStateConnected || currentConnectionState == ConnectionsManager.ConnectionStateUpdating;
         final boolean connecting = currentConnectionState == ConnectionsManager.ConnectionStateConnecting || currentConnectionState == ConnectionsManager.ConnectionStateWaitingForNetwork || currentConnectionState == ConnectionsManager.ConnectionStateConnectingToProxy;
         if (proxyEnabled) {
@@ -9130,7 +9134,10 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
             proxyDrawable.setConnected(true, connected, animated);
             showProxyButtonDelayed();
         } else {
-            showProxyButton(false, animated);
+            // Keep the in-app transport reachable before signing in, even on
+            // networks where the initial Telegram connection succeeds.
+            proxyDrawable.setConnected(false, false, animated);
+            showProxyButton(true, animated);
         }
     }
     

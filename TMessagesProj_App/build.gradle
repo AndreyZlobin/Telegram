@@ -26,6 +26,7 @@ android {
     buildToolsVersion '36.0.0'
 
     defaultConfig.applicationId = APP_PACKAGE
+    defaultConfig.testInstrumentationRunner = 'org.telegram.tests.TgLockSmokeInstrumentation'
 
 
     lintOptions {

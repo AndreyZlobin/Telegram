@@ -263,4 +263,13 @@
     <string name="RemindTodayAt">\'Отправить сегодня в\' HH:mm</string>
     <string name="RemindDayAt">\'Отправить\' d MMM \'в\' HH:mm</string>
     <string name="RemindDayYearAt">\'Напомнить\' d MMM yyyy \'в\' HH:mm</string>
+
+    <!-- Built-in TGLock transport -->
+    <string name="TgLockEnable">Включить TGLock</string>
+    <string name="TgLockInfo">Встроенный прокси для сообщений и медиа Telegram. Звонки не поддерживаются. При отключении вернётся прежнее соединение.</string>
+    <string name="TgLockSwitching">Меняем соединение…</string>
+    <string name="TgLockConnecting">TGLock включён. Подключение к Telegram… Доступность маршрутов зависит от сети. Звонки не поддерживаются.</string>
+    <string name="TgLockConnected">Подключено через TGLock. Сообщения и медиа идут через встроенный прокси. Звонки не поддерживаются.</string>
+    <string name="TgLockError">Не удалось подключить TGLock. Выключите и включите его для повторной попытки или выключите, чтобы вернуть прежнее соединение.</string>
+    <string name="TgLockStartError">Не удалось включить TGLock. Прежнее соединение восстановлено. Включите TGLock, чтобы повторить.</string>
 </resources>

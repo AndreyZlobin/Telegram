@@ -49,6 +49,7 @@ import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.ProxyRotationController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SharedConfig;
+import org.telegram.messenger.TgLockController;
 import org.telegram.utils.proxy.ProxySettings;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.ui.ActionBar.ActionBar;
@@ -91,6 +92,18 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
     private boolean useProxySettings;
 
     private int rowCount;
+    private int tgLockRow;
+    private int tgLockInfoRow;
+    private final Runnable tgLockRefresh = new Runnable() {
+        @Override
+        public void run() {
+            if (listAdapter != null) {
+                listAdapter.notifyItemChanged(tgLockRow);
+                listAdapter.notifyItemChanged(tgLockInfoRow);
+            }
+            AndroidUtilities.runOnUIThread(this, 2000);
+        }
+    };
     @Keep
     private int useProxyRow;
     private int useProxyShadowRow;
@@ -176,7 +189,11 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
             checkImageView.setScaleType(ImageView.ScaleType.CENTER);
             checkImageView.setContentDescription(getString(R.string.Edit));
             addView(checkImageView, LayoutHelper.createFrame(48, 48, (LocaleController.isRTL ? Gravity.LEFT : Gravity.RIGHT) | Gravity.TOP, 8, 8, 8, 0));
-            checkImageView.setOnClickListener(v -> presentFragment(new ProxySettingsActivity(currentInfo)));
+            checkImageView.setOnClickListener(v -> {
+                if (!TgLockController.isEnabled() && !TgLockController.isBusy()) {
+                    presentFragment(new ProxySettingsActivity(currentInfo));
+                }
+            });
 
             checkBox = new CheckBox2(context, 21);
             checkBox.setColor(Theme.key_checkbox, Theme.key_radioBackground, Theme.key_checkboxCheck);
@@ -193,6 +210,10 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
         }
 
         public void setProxy(SharedConfig.ProxyInfo proxyInfo) {
+            boolean enabled = !TgLockController.isEnabled() && !TgLockController.isBusy();
+            setAlpha(enabled ? 1f : 0.5f);
+            setEnabled(enabled);
+            checkImageView.setEnabled(enabled);
             textView.setText(proxyInfo.settings.getType() == ProxySettings.Type.WEB
                     ? proxyInfo.settings.getAddress() + " (WEB)"
                     : proxyInfo.settings.getAddress() + ":" + proxyInfo.settings.getPort());
@@ -372,6 +393,7 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
     @Override
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
+        AndroidUtilities.cancelRunOnUIThread(tgLockRefresh);
         NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.proxyChangedByRotation);
         NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.proxySettingsChanged);
         NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.proxyCheckDone);
@@ -415,6 +437,13 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
         frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT));
         listView.setAdapter(listAdapter);
         listView.setOnItemClickListener((view, position) -> {
+            if (position == tgLockRow) {
+                TgLockController.setEnabled(!TgLockController.isEnabled());
+                return;
+            }
+            if (TgLockController.isEnabled() || TgLockController.isBusy()) {
+                return;
+            }
             if (position == useProxyRow) {
                 if (SharedConfig.currentProxy == null) {
                     if (!proxyList.isEmpty()) {
@@ -518,6 +547,9 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
             }
         });
         listView.setOnItemLongClickListener((view, position) -> {
+            if (TgLockController.isEnabled() || TgLockController.isBusy()) {
+                return false;
+            }
             if (position >= proxyStartRow && position < proxyEndRow) {
                 listAdapter.toggleSelected(position);
                 return true;
@@ -611,6 +643,8 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
 
     private void updateRows(boolean notify) {
         rowCount = 0;
+        tgLockRow = rowCount++;
+        tgLockInfoRow = rowCount++;
         useProxyRow = rowCount++;
         if (useProxySettings && SharedConfig.currentProxy != null && SharedConfig.proxyList.size() > 1 && IS_PROXY_ROTATION_AVAILABLE) {
             rotationRow = rowCount++;
@@ -716,9 +750,17 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
     @Override
     public void onResume() {
         super.onResume();
+        AndroidUtilities.cancelRunOnUIThread(tgLockRefresh);
+        AndroidUtilities.runOnUIThread(tgLockRefresh, 2000);
         if (listAdapter != null) {
             listAdapter.notifyDataSetChanged();
         }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        AndroidUtilities.cancelRunOnUIThread(tgLockRefresh);
     }
 
     @Override
@@ -855,6 +897,7 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
                 }
                 case VIEW_TYPE_TEXT_SETTING: {
                     TextSettingsCell textCell = (TextSettingsCell) holder.itemView;
+                    textCell.setEnabled(!TgLockController.isEnabled() && !TgLockController.isBusy(), null);
                     ThemeBind.textColor(textCell.getTextView(), Theme.key_windowBackgroundWhiteBlackText);
                     if (position == proxyAddRow) {
                         textCell.setText(getString(R.string.AddProxy), deleteAllRow != -1);
@@ -873,16 +916,26 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
                 }
                 case VIEW_TYPE_TEXT_CHECK: {
                     TextCheckCell checkCell = (TextCheckCell) holder.itemView;
-                    if (position == useProxyRow) {
+                    if (position == tgLockRow) {
+                        checkCell.setTextAndCheck(getString(R.string.TgLockEnable), TgLockController.isEnabled(), false);
+                        checkCell.setEnabled(!TgLockController.isBusy(), null);
+                    } else if (position == useProxyRow) {
                         checkCell.setTextAndCheck(getString(R.string.UseProxySettings), useProxySettings, rotationRow != -1);
+                        checkCell.setEnabled(!TgLockController.isEnabled() && !TgLockController.isBusy(), null);
                     } else if (position == rotationRow) {
                         checkCell.setTextAndCheck(getString(R.string.UseProxyRotation), SharedConfig.proxyRotationEnabled, true);
+                        checkCell.setEnabled(!TgLockController.isEnabled() && !TgLockController.isBusy(), null);
                     }
                     break;
                 }
                 case VIEW_TYPE_INFO: {
                     TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;
-                    if (position == rotationTimeoutInfoRow) {
+                    cell.setTextColorByKey(position == tgLockInfoRow
+                            ? Theme.key_windowBackgroundWhiteBlackText : Theme.key_windowBackgroundWhiteGrayText4);
+                    if (position == tgLockInfoRow) {
+                        cell.getTextView().setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+                        cell.setText(TgLockController.getStatusText(currentConnectionState));
+                    } else if (position == rotationTimeoutInfoRow) {
                         cell.setText(getString(R.string.ProxyRotationTimeoutInfo));
                     }
                     break;
@@ -928,7 +981,9 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
                 }
             } else if (holder.getItemViewType() == VIEW_TYPE_TEXT_CHECK && payloads.contains(PAYLOAD_CHECKED_CHANGED)) {
                 TextCheckCell checkCell = (TextCheckCell) holder.itemView;
-                if (position == useProxyRow) {
+                if (position == tgLockRow) {
+                    checkCell.setChecked(TgLockController.isEnabled());
+                } else if (position == useProxyRow) {
                     checkCell.setChecked(useProxySettings);
                 } else if (position == rotationRow) {
                     checkCell.setChecked(SharedConfig.proxyRotationEnabled);
@@ -944,7 +999,9 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
             if (viewType == VIEW_TYPE_TEXT_CHECK) {
                 TextCheckCell checkCell = (TextCheckCell) holder.itemView;
                 int position = holder.getAdapterPosition();
-                if (position == useProxyRow) {
+                if (position == tgLockRow) {
+                    checkCell.setChecked(TgLockController.isEnabled());
+                } else if (position == useProxyRow) {
                     checkCell.setChecked(useProxySettings);
                 } else if (position == rotationRow) {
                     checkCell.setChecked(SharedConfig.proxyRotationEnabled);
@@ -955,6 +1012,12 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
         @Override
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
             int position = holder.getAdapterPosition();
+            if (position == tgLockRow) {
+                return !TgLockController.isBusy();
+            }
+            if (TgLockController.isEnabled() || TgLockController.isBusy()) {
+                return false;
+            }
             return position == useProxyRow || position == rotationRow || position == proxyAddRow || position == deleteAllRow || position >= proxyStartRow && position < proxyEndRow;
         }
 
@@ -997,7 +1060,11 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
         @Override
         public long getItemId(int position) {
             // Random stable ids, could be anything non-repeating
-            if (position == useProxyShadowRow) {
+            if (position == tgLockRow) {
+                return -12;
+            } else if (position == tgLockInfoRow) {
+                return -13;
+            } else if (position == useProxyShadowRow) {
                 return -1;
             } else if (position == proxyShadowRow) {
                 return -2;
@@ -1028,7 +1095,7 @@ public class ProxyListActivity extends BaseFragment implements NotificationCente
                 return VIEW_TYPE_SHADOW;
             } else if (position == proxyAddRow || position == deleteAllRow) {
                 return VIEW_TYPE_TEXT_SETTING;
-            } else if (position == useProxyRow || position == rotationRow) {
+            } else if (position == tgLockRow || position == useProxyRow || position == rotationRow) {
                 return VIEW_TYPE_TEXT_CHECK;
             } else if (position == connectionsHeaderRow) {
                 return VIEW_TYPE_HEADER;

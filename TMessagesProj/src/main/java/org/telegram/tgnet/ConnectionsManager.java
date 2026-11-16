@@ -671,8 +671,11 @@ public class ConnectionsManager extends BaseController {
 
     public void init(int version, int layer, int apiId, String deviceModel, String systemVersion, String appVersion, String langCode, String systemLangCode, String configPath, String logPath, String regId, String cFingerprint, int timezoneOffset, long userId, boolean userPremium, boolean enablePushConnection) {
         final SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
-        final ProxySettings proxySettings = ProxySettings.fromSharedPreferences(preferences);
-        if (preferences.getBoolean("proxy_enabled", false) && proxySettings.isValid()) {
+        final boolean tgLockEnabled = org.telegram.messenger.TgLockController.isEnabled();
+        final ProxySettings proxySettings = tgLockEnabled
+                ? org.telegram.messenger.TgLockController.getProxySettings()
+                : ProxySettings.fromSharedPreferences(preferences);
+        if ((tgLockEnabled || preferences.getBoolean("proxy_enabled", false)) && proxySettings.isValid()) {
             if (proxySettings.getType() == ProxySettings.Type.WEB) {
                 int localPort = WebProxyTransport.start(proxySettings.getAddress(), proxySettings.getSecret());
                 native_setProxySettings(currentAccount, "127.0.0.1", localPort != 0 ? localPort : 9, "", "",
@@ -983,6 +986,10 @@ public class ConnectionsManager extends BaseController {
     }
 
     public static void setProxySettings(boolean enabled, ProxySettings settings) {
+        if (org.telegram.messenger.TgLockController.isEnabled()) {
+            enabled = true;
+            settings = org.telegram.messenger.TgLockController.getProxySettings();
+        }
         String address = "";
         int port = 0;
         String username = "";

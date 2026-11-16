@@ -1,0 +1,5 @@
+This adapter embeds TGLock v2.0.0-beta.19 (MIT license).
+Source: https://github.com/by-sonic/tglock
+Pinned commit: 8ce93552433694e72fb74a6b4115f6dd99b62798
+The upstream copyright and full license are retained in third_party/tglock/LICENSE.
+Telegram Android and the integration are distributed under Telegram's GPL terms.
